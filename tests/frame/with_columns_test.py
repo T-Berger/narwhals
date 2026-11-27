@@ -5,12 +5,12 @@ from packaging.version import Version as PkgVersion
 
 import narwhals as nw
 from narwhals.exceptions import ColumnNotFoundError, ShapeError
+from narwhals.testing import assert_frame_equal
 from tests.utils import (
     PANDAS_VERSION,
     PYARROW_VERSION,
     Constructor,
     ConstructorEager,
-    assert_equal_data,
     maybe_collect,
 )
 
@@ -35,15 +35,20 @@ def test_with_columns_order(constructor: Constructor) -> None:
     df = nw.from_native(constructor(data))
     result = df.with_columns(nw.col("a") + 1, d=nw.col("a") - 1)
     assert result.collect_schema().names() == ["a", "b", "z", "d"]
-    expected = {"a": [2, 4, 3], "b": [4, 4, 6], "z": [7.0, 8.0, 9.0], "d": [0, 2, 1]}
-    assert_equal_data(result, expected)
+    expected = nw.from_native(
+        constructor(
+            {"a": [2, 4, 3], "b": [4, 4, 6], "z": [7.0, 8.0, 9.0], "d": [0, 2, 1]}
+        )
+    )
+    assert_frame_equal(result, expected)
 
 
 def test_with_columns_empty(constructor_eager: ConstructorEager) -> None:
     data = {"a": [1, 3, 2], "b": [4, 4, 6], "z": [7.0, 8.0, 9.0]}
     df = nw.from_native(constructor_eager(data))
     result = df.select().with_columns()
-    assert_equal_data(result, {})
+    expected = nw.from_native(constructor_eager({}))
+    assert_frame_equal(result, expected)
 
 
 def test_select_with_columns_empty_lazy(constructor: Constructor) -> None:
@@ -60,8 +65,8 @@ def test_with_columns_order_single_row(constructor: Constructor) -> None:
     df = nw.from_native(constructor(data)).filter(nw.col("i") < 1).drop("i")
     result = df.with_columns(nw.col("a") + 1, d=nw.col("a") - 1)
     assert result.collect_schema().names() == ["a", "b", "z", "d"]
-    expected = {"a": [2], "b": [4], "z": [7.0], "d": [0]}
-    assert_equal_data(result, expected)
+    expected = nw.from_native(constructor({"a": [2], "b": [4], "z": [7.0], "d": [0]}))
+    assert_frame_equal(result, expected)
 
 
 def test_with_columns_dtypes_single_row(
@@ -124,7 +129,8 @@ def test_with_columns_numpy_array(constructor: Constructor) -> None:
     arr = np.array([4, 5, 6])
     # Eager backends (plugins included) and Polars lazy frames can build a Series.
     if df.implementation.is_polars() or isinstance(df, nw.DataFrame):
-        assert_equal_data(df.with_columns(b=arr), {"a": [1, 2, 3], "b": [4, 5, 6]})
+        expected = nw.from_native(constructor({"a": [1, 2, 3], "b": [4, 5, 6]}))
+        assert_frame_equal(df.with_columns(b=arr), expected)
     else:
         with pytest.raises(ValueError, match="lazy-only, but `new_series`"):
             df.with_columns(b=arr)
