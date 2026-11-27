@@ -8,6 +8,7 @@ from packaging.version import Version as PkgVersion
 import narwhals as nw
 from narwhals._utils import Implementation
 from narwhals.dependencies import get_cudf, get_modin, get_polars
+from narwhals.testing import assert_frame_equal
 from tests.utils import POLARS_VERSION, Constructor, assert_equal_data
 
 if TYPE_CHECKING:
@@ -164,8 +165,8 @@ def test_collect_with_kwargs(constructor: Constructor) -> None:
         .collect(**collect_kwargs.get(df.implementation, {}))
     )
 
-    expected = {"a": [3], "b": [7]}
-    assert_equal_data(result, expected)
+    expected = nw.from_native(constructor({"a": [3], "b": [7]})).lazy().collect()
+    assert_frame_equal(result, expected, check_dtypes=False)
 
 
 def test_collect_empty(constructor: Constructor) -> None:

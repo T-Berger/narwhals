@@ -6,6 +6,7 @@ from typing import Any
 import pytest
 
 import narwhals as nw
+from narwhals.testing import assert_frame_equal
 from tests.utils import Constructor, assert_equal_data, skip_if_no_categorical_ordering
 
 
@@ -13,11 +14,15 @@ def test_sort(constructor: Constructor) -> None:
     data = {"an tan": [1, 3, 2], "b": [4, 4, 6], "z": [7.0, 8.0, 9.0]}
     df = nw.from_native(constructor(data))
     result = df.sort("an tan", "b")
-    expected = {"an tan": [1, 2, 3], "b": [4, 6, 4], "z": [7.0, 9.0, 8.0]}
-    assert_equal_data(result, expected)
+    expected = nw.from_native(
+        constructor({"an tan": [1, 2, 3], "b": [4, 6, 4], "z": [7.0, 9.0, 8.0]})
+    )
+    assert_frame_equal(result.lazy().collect(), expected.lazy().collect())
     result = df.sort("an tan", "b", descending=[True, False])
-    expected = {"an tan": [3, 2, 1], "b": [4, 6, 4], "z": [8.0, 9.0, 7.0]}
-    assert_equal_data(result, expected)
+    expected = nw.from_native(
+        constructor({"an tan": [3, 2, 1], "b": [4, 6, 4], "z": [8.0, 9.0, 7.0]})
+    )
+    assert_frame_equal(result.lazy().collect(), expected.lazy().collect())
 
 
 @pytest.mark.parametrize(

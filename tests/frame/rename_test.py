@@ -4,6 +4,7 @@ import pytest
 
 import narwhals as nw
 from narwhals.exceptions import DuplicateError
+from narwhals.testing import assert_frame_equal
 from tests.utils import Constructor, assert_equal_data
 
 
@@ -22,8 +23,8 @@ def test_rename_swap(constructor: Constructor) -> None:
     data = {"a": [1, 3, 2], "b": [4, 4, 6]}
     df = nw.from_native(constructor(data))
     result = df.rename({"a": "b", "b": "a"})
-    expected = {"b": [1, 3, 2], "a": [4, 4, 6]}
-    assert_equal_data(result, expected)
+    expected = nw.from_native(constructor({"b": [1, 3, 2], "a": [4, 4, 6]}))
+    assert_frame_equal(result, expected)
 
 
 @pytest.mark.parametrize("mapping", [{"b": "a"}, {"a": "x", "b": "x"}])

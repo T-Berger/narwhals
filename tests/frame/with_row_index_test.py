@@ -6,12 +6,12 @@ import pytest
 from packaging.version import Version as PkgVersion
 
 import narwhals as nw
+from narwhals.testing import assert_frame_equal
 from tests.utils import (
     DUCKDB_VERSION,
     POLARS_VERSION,
     Constructor,
     ConstructorEager,
-    assert_equal_data,
     skip_if_no_categorical_ordering,
 )
 
@@ -23,8 +23,8 @@ data = {"abc": ["foo", "bars"], "xyz": [100, 200], "const": [42, 42]}
 
 def test_with_row_index_eager(constructor_eager: ConstructorEager) -> None:
     result = nw.from_native(constructor_eager(data), eager_only=True).with_row_index()
-    expected = {"index": [0, 1], **data}
-    assert_equal_data(result, expected)
+    expected = nw.from_native(constructor_eager({"index": [0, 1], **data}))
+    assert_frame_equal(result, expected, check_dtypes=False)
 
 
 @pytest.mark.parametrize(
@@ -49,8 +49,8 @@ def test_with_row_index_lazy(
         .with_row_index(name="foo bar", order_by=order_by)
         .sort("xyz")
     )
-    expected = {"foo bar": expected_index, **data}
-    assert_equal_data(result, expected)
+    expected = nw.from_native(constructor({"foo bar": expected_index, **data}))
+    assert_frame_equal(result, expected)
 
 
 def test_with_row_index_lazy_exception(constructor: Constructor) -> None:
@@ -61,7 +61,8 @@ def test_with_row_index_lazy_exception(constructor: Constructor) -> None:
             frame.with_row_index()  # type: ignore[call-arg]
     else:
         result = frame.with_row_index()
-        assert_equal_data(result, {"index": [0, 1], **data})
+        expected = nw.from_native(constructor({"index": [0, 1], **data}))
+        assert_frame_equal(result, expected, check_dtypes=False)
 
 
 @pytest.mark.parametrize(
@@ -84,8 +85,8 @@ def test_with_row_index_lazy_meaner_examples(
     data = {"a": ["A", "B", "A"], "b": [1, 2, 3], "c": [9, 2, 4]}
     df = nw.from_native(constructor(data))
     result = df.with_row_index(name="index", order_by=order_by).sort("b")
-    expected = {"index": expected_index, **data}
-    assert_equal_data(result, expected)
+    expected = nw.from_native(constructor({"index": expected_index, **data}))
+    assert_frame_equal(result, expected)
 
 
 def test_with_row_index_order_by_categorical(constructor: Constructor) -> None:
@@ -99,7 +100,8 @@ def test_with_row_index_order_by_categorical(constructor: Constructor) -> None:
         .sort("n")
         .select("i", "n")
     )
-    assert_equal_data(result, {"i": [2, 1, 0], "n": [1, 2, 3]})
+    expected = nw.from_native(constructor({"i": [2, 1, 0], "n": [1, 2, 3]}))
+    assert_frame_equal(result, expected)
 
 
 def test_with_row_index_order_by_w_null(
@@ -114,7 +116,8 @@ def test_with_row_index_order_by_w_null(
 
     df = nw.from_native(constructor({"c": ["dog", "cat", None], "n": [1, 2, 3]}))
     result = df.with_row_index("i", order_by="c").sort("n").select("i", "n")
-    assert_equal_data(result, {"i": [2, 1, 0], "n": [1, 2, 3]})
+    expected = nw.from_native(constructor({"i": [2, 1, 0], "n": [1, 2, 3]}))
+    assert_frame_equal(result, expected)
 
 
 def test_with_row_index_existing_name(constructor_eager: ConstructorEager) -> None:

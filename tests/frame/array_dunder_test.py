@@ -7,13 +7,8 @@ pytest.importorskip("numpy")
 import numpy as np
 
 import narwhals as nw
-from tests.utils import (
-    PANDAS_VERSION,
-    POLARS_VERSION,
-    PYARROW_VERSION,
-    ConstructorEager,
-    assert_equal_data,
-)
+from narwhals.testing import assert_frame_equal
+from tests.utils import PANDAS_VERSION, POLARS_VERSION, PYARROW_VERSION, ConstructorEager
 
 
 def test_array_dunder(
@@ -65,4 +60,5 @@ def test_array_dunder_with_copy(
         result = df.__array__(copy=False)
         np.testing.assert_array_equal(result, np.array([[1], [2], [3]], dtype="int64"))
         result[0, 0] = 999
-        assert_equal_data(df, {"a": [999, 2, 3]})
+        expected = nw.from_native(constructor_eager({"a": [999, 2, 3]}))
+        assert_frame_equal(df, expected)

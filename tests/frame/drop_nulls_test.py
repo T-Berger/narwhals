@@ -3,6 +3,7 @@ from __future__ import annotations
 import pytest
 
 import narwhals as nw
+from narwhals.testing import assert_frame_equal
 from tests.utils import Constructor, assert_equal_data
 
 data = {"alpha": [1.0, 2.0, None, 4.0], "beta gamma": [None, 3.0, None, 5.0]}
@@ -10,8 +11,11 @@ data = {"alpha": [1.0, 2.0, None, 4.0], "beta gamma": [None, 3.0, None, 5.0]}
 
 def test_drop_nulls(constructor: Constructor) -> None:
     result = nw.from_native(constructor(data)).drop_nulls()
-    expected = {"alpha": [2.0, 4.0], "beta gamma": [3.0, 5.0]}
-    assert_equal_data(result, expected)
+    expected = nw.from_native(
+        constructor({"alpha": [2.0, 4.0], "beta gamma": [3.0, 5.0]})
+    )
+    # SQLFrame infers Decimal for a column whose first value is None.
+    assert_frame_equal(result, expected, check_dtypes=False)
 
 
 @pytest.mark.parametrize(

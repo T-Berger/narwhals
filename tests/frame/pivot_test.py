@@ -8,6 +8,7 @@ from packaging.version import Version as PkgVersion
 
 import narwhals as nw
 from narwhals.exceptions import NarwhalsError
+from narwhals.testing import assert_frame_equal
 from tests.utils import POLARS_VERSION, ConstructorEager, assert_equal_data
 
 data = {
@@ -252,10 +253,14 @@ def test_pivot_no_index(
     df = nw.from_native(constructor_eager(data_no_dups), eager_only=True)
     with pytest.warns(UserWarning, match="has no effect"):
         result = df.pivot(on="col", values="foo", maintain_order=True).sort("ix", "bar")
-    expected = {
-        "ix": [1, 1, 2, 2],
-        "bar": ["x", "y", "w", "z"],
-        "a": [1.0, None, None, 3.0],
-        "b": [None, 2.0, 4.0, None],
-    }
-    assert_equal_data(result, expected)
+    expected = nw.from_native(
+        constructor_eager(
+            {
+                "ix": [1, 1, 2, 2],
+                "bar": ["x", "y", "w", "z"],
+                "a": [1.0, None, None, 3.0],
+                "b": [None, 2.0, 4.0, None],
+            }
+        )
+    )
+    assert_frame_equal(result, expected, check_dtypes=False)

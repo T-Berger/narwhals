@@ -7,6 +7,7 @@ from packaging.version import Version as PkgVersion
 
 import narwhals as nw
 from narwhals.exceptions import ColumnNotFoundError, InvalidOperationError
+from narwhals.testing import assert_frame_equal
 from tests.utils import (
     DUCKDB_VERSION,
     POLARS_VERSION,
@@ -194,5 +195,5 @@ def test_unique_3069(constructor: Constructor) -> None:
     df = nw.from_native(constructor(data))
     unique_to_get = "group"
     result = df.select(nw.col(unique_to_get)).unique().sort(unique_to_get)
-    expected = {"group": ["d", "e", "f"]}
-    assert_equal_data(result, expected)
+    expected = nw.from_native(constructor({"group": ["d", "e", "f"]}))
+    assert_frame_equal(result, expected)

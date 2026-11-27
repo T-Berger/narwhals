@@ -8,6 +8,7 @@ import pytest
 from packaging.version import Version as PkgVersion
 
 import narwhals as nw
+from narwhals.testing import assert_frame_equal
 from tests.utils import (
     DUCKDB_VERSION,
     PANDAS_VERSION,
@@ -158,15 +159,19 @@ def test_inner_join_two_keys(constructor: Constructor) -> None:
     result_on = df.join(df_right, on=["antananarivo", "bob"], how="inner")
     result = result.sort("idx").drop("idx_right")
     result_on = result_on.sort("idx").drop("idx_right")
-    expected = {
-        "antananarivo": [1, 3, 2],
-        "bob": [4, 4, 6],
-        "zor ro": [7.0, 8.0, 9.0],
-        "idx": [0, 1, 2],
-        "zor ro_right": [7.0, 8.0, 9.0],
-    }
-    assert_equal_data(result, expected)
-    assert_equal_data(result_on, expected)
+    expected = from_native_lazy(
+        constructor(
+            {
+                "antananarivo": [1, 3, 2],
+                "bob": [4, 4, 6],
+                "zor ro": [7.0, 8.0, 9.0],
+                "idx": [0, 1, 2],
+                "zor ro_right": [7.0, 8.0, 9.0],
+            }
+        )
+    )
+    assert_frame_equal(result, expected)
+    assert_frame_equal(result_on, expected)
 
 
 def test_inner_join_single_key(constructor: Constructor) -> None:
@@ -184,16 +189,20 @@ def test_inner_join_single_key(constructor: Constructor) -> None:
     result_on = df.join(df_right, on="antananarivo", how="inner").sort("idx")
     result = result.drop("idx_right")
     result_on = result_on.drop("idx_right")
-    expected = {
-        "antananarivo": [1, 3, 2],
-        "bob": [4, 4, 6],
-        "zor ro": [7.0, 8.0, 9.0],
-        "idx": [0, 1, 2],
-        "bob_right": [4, 4, 6],
-        "zor ro_right": [7.0, 8.0, 9.0],
-    }
-    assert_equal_data(result, expected)
-    assert_equal_data(result_on, expected)
+    expected = from_native_lazy(
+        constructor(
+            {
+                "antananarivo": [1, 3, 2],
+                "bob": [4, 4, 6],
+                "zor ro": [7.0, 8.0, 9.0],
+                "idx": [0, 1, 2],
+                "bob_right": [4, 4, 6],
+                "zor ro_right": [7.0, 8.0, 9.0],
+            }
+        )
+    )
+    assert_frame_equal(result, expected)
+    assert_frame_equal(result_on, expected)
 
 
 def test_cross_join(constructor: Constructor) -> None:
@@ -202,11 +211,15 @@ def test_cross_join(constructor: Constructor) -> None:
     data = {"antananarivo": [1, 3, 2]}
     df = from_native_lazy(constructor(data))
     result = df.join(df, how="cross").sort("antananarivo", "antananarivo_right")
-    expected = {
-        "antananarivo": [1, 1, 1, 2, 2, 2, 3, 3, 3],
-        "antananarivo_right": [1, 2, 3, 1, 2, 3, 1, 2, 3],
-    }
-    assert_equal_data(result, expected)
+    expected = from_native_lazy(
+        constructor(
+            {
+                "antananarivo": [1, 1, 1, 2, 2, 2, 3, 3, 3],
+                "antananarivo_right": [1, 2, 3, 1, 2, 3, 1, 2, 3],
+            }
+        )
+    )
+    assert_frame_equal(result, expected)
 
     with pytest.raises(
         ValueError, match="Can not pass `left_on`, `right_on` or `on` keys for cross join"
@@ -242,11 +255,15 @@ def test_cross_join_suffix(constructor: Constructor, suffix: str) -> None:
     result = df.join(df, how="cross", suffix=suffix).sort(
         "antananarivo", f"antananarivo{suffix}"
     )
-    expected = {
-        "antananarivo": [1, 1, 1, 2, 2, 2, 3, 3, 3],
-        f"antananarivo{suffix}": [1, 2, 3, 1, 2, 3, 1, 2, 3],
-    }
-    assert_equal_data(result, expected)
+    expected = from_native_lazy(
+        constructor(
+            {
+                "antananarivo": [1, 1, 1, 2, 2, 2, 3, 3, 3],
+                f"antananarivo{suffix}": [1, 2, 3, 1, 2, 3, 1, 2, 3],
+            }
+        )
+    )
+    assert_frame_equal(result, expected)
 
 
 def test_cross_join_non_pandas() -> None:  # pragma: no cover
@@ -369,22 +386,30 @@ def test_left_join(constructor: Constructor) -> None:
     result = df_left.join(df_right, left_on="bob", right_on="co", how="left")
     result = result.sort("idx")
     result = result.drop("idx_right")
-    expected = {
-        "antananarivo": [1, 2, 3],
-        "bob": [4, 5, 6],
-        "idx": [0, 1, 2],
-        "antananarivo_right": [1, 2, None],
-    }
+    expected = from_native_lazy(
+        constructor(
+            {
+                "antananarivo": [1.0, 2.0, 3.0],
+                "bob": [4.0, 5.0, 6.0],
+                "idx": [0.0, 1.0, 2.0],
+                "antananarivo_right": [1.0, 2.0, None],
+            }
+        )
+    )
     result_on_list = df_left.join(df_right, on=["antananarivo", "idx"], how="left")
     result_on_list = result_on_list.sort("idx")
-    expected_on_list = {
-        "antananarivo": [1, 2, 3],
-        "bob": [4, 5, 6],
-        "idx": [0, 1, 2],
-        "co": [4, 5, 7],
-    }
-    assert_equal_data(result, expected)
-    assert_equal_data(result_on_list, expected_on_list)
+    expected_on_list = from_native_lazy(
+        constructor(
+            {
+                "antananarivo": [1.0, 2.0, 3.0],
+                "bob": [4.0, 5.0, 6.0],
+                "idx": [0.0, 1.0, 2.0],
+                "co": [4.0, 5.0, 7.0],
+            }
+        )
+    )
+    assert_frame_equal(result, expected)
+    assert_frame_equal(result_on_list, expected_on_list)
 
 
 def test_left_join_multiple_column(constructor: Constructor) -> None:
@@ -400,8 +425,10 @@ def test_left_join_multiple_column(constructor: Constructor) -> None:
     )
     result = result.sort("idx")
     result = result.drop("idx_right")
-    expected = {"antananarivo": [1, 2, 3], "bob": [4, 5, 6], "idx": [0, 1, 2]}
-    assert_equal_data(result, expected)
+    expected = from_native_lazy(
+        constructor({"antananarivo": [1, 2, 3], "bob": [4, 5, 6], "idx": [0, 1, 2]})
+    )
+    assert_frame_equal(result, expected)
 
 
 def test_left_join_overlapping_column(constructor: Constructor) -> None:
@@ -421,27 +448,35 @@ def test_left_join_overlapping_column(constructor: Constructor) -> None:
     df_right = from_native_lazy(constructor(data_right))
     result = df_left.join(df_right, left_on="bob", right_on="c", how="left").sort("idx")
     result = result.drop("idx_right")
-    expected: dict[str, list[Any]] = {
-        "antananarivo": [1, 2, 3],
-        "bob": [4, 5, 6],
-        "d": [1, 4, 2],
-        "idx": [0, 1, 2],
-        "antananarivo_right": [1, 2, 3],
-        "d_right": [1, 4, 2],
-    }
-    assert_equal_data(result, expected)
+    expected = from_native_lazy(
+        constructor(
+            {
+                "antananarivo": [1.0, 2.0, 3.0],
+                "bob": [4.0, 5.0, 6.0],
+                "d": [1.0, 4.0, 2.0],
+                "idx": [0.0, 1.0, 2.0],
+                "antananarivo_right": [1.0, 2.0, 3.0],
+                "d_right": [1.0, 4.0, 2.0],
+            }
+        )
+    )
+    assert_frame_equal(result, expected)
     result = df_left.join(df_right, left_on="antananarivo", right_on="d", how="left")
     result = result.sort("idx")
     result = result.drop("idx_right")
-    expected = {
-        "antananarivo": [1, 2, 3],
-        "bob": [4, 5, 6],
-        "d": [1, 4, 2],
-        "idx": [0, 1, 2],
-        "antananarivo_right": [1.0, 3.0, None],
-        "c": [4.0, 6.0, None],
-    }
-    assert_equal_data(result, expected)
+    expected = from_native_lazy(
+        constructor(
+            {
+                "antananarivo": [1.0, 2.0, 3.0],
+                "bob": [4.0, 5.0, 6.0],
+                "d": [1.0, 4.0, 2.0],
+                "idx": [0.0, 1.0, 2.0],
+                "antananarivo_right": [1.0, 3.0, None],
+                "c": [4.0, 6.0, None],
+            }
+        )
+    )
+    assert_frame_equal(result, expected)
 
 
 @pytest.mark.parametrize("how", ["inner", "left", "semi", "anti"])
@@ -639,14 +674,18 @@ def test_joinasof_by(constructor: Constructor, request: pytest.FixtureRequest) -
     ).sort("antananarivo")
     result = df.join_asof(df_right, on="antananarivo", by_left="bob", by_right="bob")
     result_by = df.join_asof(df_right, on="antananarivo", by="bob")
-    expected = {
-        "antananarivo": [1, 5, 7, 10],
-        "bob": ["D", "D", "C", "A"],
-        "c": [9, 2, 1, 1],
-        "d": [1, 3, None, 4],
-    }
-    assert_equal_data(result.sort(by="antananarivo"), expected)
-    assert_equal_data(result_by.sort(by="antananarivo"), expected)
+    expected = from_native_lazy(
+        constructor(
+            {
+                "antananarivo": [1, 5, 7, 10],
+                "bob": ["D", "D", "C", "A"],
+                "c": [9, 2, 1, 1],
+                "d": [1, 3, None, 4],
+            }
+        )
+    )
+    assert_frame_equal(result.sort(by="antananarivo"), expected)
+    assert_frame_equal(result_by.sort(by="antananarivo"), expected)
 
 
 def test_joinasof_suffix(
@@ -667,8 +706,12 @@ def test_joinasof_suffix(
     result = df.join_asof(
         df_right, left_on="antananarivo", right_on="antananarivo", suffix="_y"
     )
-    expected = {"antananarivo": [1, 5, 10], "val": ["a", "b", "c"], "val_y": [1, 3, 7]}
-    assert_equal_data(result.sort(by="antananarivo"), expected)
+    expected = from_native_lazy(
+        constructor(
+            {"antananarivo": [1, 5, 10], "val": ["a", "b", "c"], "val_y": [1, 3, 7]}
+        )
+    )
+    assert_frame_equal(result.sort(by="antananarivo"), expected)
 
 
 @pytest.mark.parametrize("strategy", ["back", "furthest"])
@@ -928,21 +971,28 @@ def test_full_join_with_overlapping_non_key_columns_and_nulls(
         "id", nulls_last=True
     )
 
-    expected = {
-        "id": [1, 2, 3, None],
-        "shared_col": ["a", "b", "c", None],
-        "left_only": [10, 20, 30, None],
-        "id_r": [None, 2, 3, None],
-        "shared_col_r": [None, "x", "y", "z"],
-        "right_only": [None, 100, 200, 300],
-    }
+    expected = from_native_lazy(
+        constructor(
+            {
+                "id": [1, 2, 3, None],
+                "shared_col": ["a", "b", "c", None],
+                "left_only": [10, 20, 30, None],
+                "id_r": [None, 2, 3, None],
+                "shared_col_r": [None, "x", "y", "z"],
+                "right_only": [None, 100, 200, 300],
+            }
+        )
+    )
 
-    assert_equal_data(result, expected)
+    # SQLFrame infers Int32 for columns whose first value is None.
+    assert_frame_equal(result, expected, check_dtypes=False)
 
 
 def test_join_on_strings(constructor: Constructor) -> None:
     df_l = nw.from_native(constructor({"a": ["one", "two", "two"]})).lazy()
     df_r = nw.from_native(constructor({"a": ["one", "two"], "b": [5, 6]})).lazy()
     result = df_l.join(df_r, on="a").sort("a")
-    expected = {"a": ["one", "two", "two"], "b": [5, 6, 6]}
-    assert_equal_data(result, expected)
+    expected = nw.from_native(
+        constructor({"a": ["one", "two", "two"], "b": [5, 6, 6]})
+    ).lazy()
+    assert_frame_equal(result, expected)

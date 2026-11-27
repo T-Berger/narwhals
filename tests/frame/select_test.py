@@ -8,6 +8,7 @@ from packaging.version import Version as PkgVersion
 import narwhals as nw
 import narwhals.selectors as ncs
 from narwhals.exceptions import ColumnNotFoundError, InvalidIntoExprError, NarwhalsError
+from narwhals.testing import assert_frame_equal
 from tests.utils import (
     DASK_VERSION,
     DUCKDB_VERSION,
@@ -25,8 +26,8 @@ def test_select(constructor: Constructor) -> None:
     data = {"a": [1, 3, 2], "b": [4, 4, 6], "z": [7.0, 8.0, 9.0]}
     df = nw.from_native(constructor(data))
     result = df.select("a")
-    expected = {"a": [1, 3, 2]}
-    assert_equal_data(result, expected)
+    expected = nw.from_native(constructor({"a": [1, 3, 2]}))
+    assert_frame_equal(result, expected)
 
 
 @pytest.mark.parametrize("name", ["order", "SELECT", "my col"])
@@ -35,9 +36,11 @@ def test_select_names_which_are_not_sql_identifiers(
 ) -> None:
     data = {name: [1, 3, 2], "b": ["x", "y", "z"]}
     df = nw.from_native(constructor(data))
-    assert_equal_data(df.select(name), {name: [1, 3, 2]})
-    assert_equal_data(df.select(ncs.numeric()), {name: [1, 3, 2]})
-    assert_equal_data(df.select(~ncs.numeric()), {"b": ["x", "y", "z"]})
+    expected = nw.from_native(constructor({name: [1, 3, 2]}))
+    assert_frame_equal(df.select(name), expected)
+    assert_frame_equal(df.select(ncs.numeric()), expected)
+    expected = nw.from_native(constructor({"b": ["x", "y", "z"]}))
+    assert_frame_equal(df.select(~ncs.numeric()), expected)
 
 
 def test_empty_select(constructor_eager: ConstructorEager) -> None:
@@ -165,14 +168,14 @@ def test_left_to_right_broadcasting(constructor: Constructor) -> None:
         pytest.skip()
     df = nw.from_native(constructor({"a": [1, 1, 2], "b": [4, 5, 6]}))
     result = df.select(nw.col("a") + nw.col("b").sum())
-    expected = {"a": [16, 16, 17]}
-    assert_equal_data(result, expected)
+    expected = nw.from_native(constructor({"a": [16, 16, 17]}))
+    assert_frame_equal(result, expected, check_dtypes=False)
     result = df.select(nw.col("b").sum() + nw.col("a"))
-    expected = {"b": [16, 16, 17]}
-    assert_equal_data(result, expected)
+    expected = nw.from_native(constructor({"b": [16, 16, 17]}))
+    assert_frame_equal(result, expected, check_dtypes=False)
     result = df.select(nw.col("b").sum() + nw.col("a").sum())
-    expected = {"b": [19]}
-    assert_equal_data(result, expected)
+    expected = nw.from_native(constructor({"b": [19]}))
+    assert_frame_equal(result, expected, check_dtypes=False)
 
 
 def test_alias_invalid(constructor: Constructor) -> None:
@@ -206,8 +209,8 @@ def test_select_duplicates(constructor: Constructor) -> None:
 def test_binary_window_aggregation(constructor_eager: ConstructorEager) -> None:
     df = nw.from_native(constructor_eager({"a": [1, 1, 2]}))
     result = df.select(nw.col("a").cum_sum() + nw.col("a").sum())
-    expected = {"a": [5, 6, 8]}
-    assert_equal_data(result, expected)
+    expected = nw.from_native(constructor_eager({"a": [5, 6, 8]}))
+    assert_frame_equal(result, expected)
 
 
 def test_pandas_unnamed() -> None:

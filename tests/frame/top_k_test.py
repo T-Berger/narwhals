@@ -7,11 +7,11 @@ import pytest
 from packaging.version import Version as PkgVersion
 
 import narwhals as nw
+from narwhals.testing import assert_frame_equal
 from tests.utils import (
     DUCKDB_VERSION,
     POLARS_VERSION,
     Constructor,
-    assert_equal_data,
     skip_if_no_categorical_ordering,
 )
 
@@ -25,12 +25,13 @@ def test_top_k(constructor: Constructor) -> None:
     data = {"a": ["a", "f", "a", "d", "b", "c"], "b c": [None, None, 2, 3, 6, 1]}
     df = nw.from_native(constructor(data))
     result = df.top_k(4, by="b c")
-    expected = {"a": ["a", "b", "c", "d"], "b c": [2, 6, 1, 3]}
-    assert_equal_data(result.sort("a"), expected)
+    expected = nw.from_native(
+        constructor({"a": ["a", "b", "c", "d"], "b c": [2, 6, 1, 3]})
+    )
+    assert_frame_equal(result.sort("a"), expected, check_dtypes=False)
     df = nw.from_native(constructor(data))
     result = df.top_k(4, by="b c", reverse=True)
-    expected = {"a": ["a", "b", "c", "d"], "b c": [2, 6, 1, 3]}
-    assert_equal_data(result.sort(by="a"), expected)
+    assert_frame_equal(result.sort(by="a"), expected, check_dtypes=False)
 
 
 def test_top_k_by_multiple(constructor: Constructor) -> None:
@@ -46,12 +47,12 @@ def test_top_k_by_multiple(constructor: Constructor) -> None:
     }
     df = nw.from_native(constructor(data))
     result = df.top_k(4, by=["b", "sf_c"], reverse=True)
-    expected = {
-        "a": ["b", "f", "a", "c"],
-        "b": [1, 2, 2, 1],
-        "sf_c": ["a", "d", "k", "r"],
-    }
-    assert_equal_data(result.sort("sf_c"), expected)
+    expected = nw.from_native(
+        constructor(
+            {"a": ["b", "f", "a", "c"], "b": [1, 2, 2, 1], "sf_c": ["a", "d", "k", "r"]}
+        )
+    )
+    assert_frame_equal(result.sort("sf_c"), expected)
     data = {
         "a": ["a", "f", "a", "d", "b", "c"],
         "b": [2, 2, 2, 3, 1, 1],
@@ -59,12 +60,12 @@ def test_top_k_by_multiple(constructor: Constructor) -> None:
     }
     df = nw.from_native(constructor(data))
     result = df.top_k(4, by=["b", "sf_c"], reverse=[False, True])
-    expected = {
-        "a": ["d", "f", "a", "a"],
-        "b": [3, 2, 2, 2],
-        "sf_c": ["a", "d", "k", "s"],
-    }
-    assert_equal_data(result.sort("sf_c"), expected)
+    expected = nw.from_native(
+        constructor(
+            {"a": ["d", "f", "a", "a"], "b": [3, 2, 2, 2], "sf_c": ["a", "d", "k", "s"]}
+        )
+    )
+    assert_frame_equal(result.sort("sf_c"), expected)
 
 
 @pytest.mark.parametrize("reverse", [[True], [True, False, True]])
@@ -95,6 +96,12 @@ def test_top_k_categorical(constructor: Constructor) -> None:
     data = {"c": ["dog", "cat", "bird"], "n": [1, 2, 3]}
     df = nw.from_native(constructor(data)).cast({"c": nw.Categorical()})
     result = df.top_k(2, by="c").sort("n")
-    assert_equal_data(result, {"c": ["dog", "cat"], "n": [1, 2]})
+    expected = nw.from_native(constructor({"c": ["dog", "cat"], "n": [1, 2]})).cast(
+        {"c": nw.Categorical()}
+    )
+    assert_frame_equal(result, expected, categorical_as_str=True)
     result = df.top_k(2, by="c", reverse=True).sort("n")
-    assert_equal_data(result, {"c": ["cat", "bird"], "n": [2, 3]})
+    expected = nw.from_native(constructor({"c": ["cat", "bird"], "n": [2, 3]})).cast(
+        {"c": nw.Categorical()}
+    )
+    assert_frame_equal(result, expected, categorical_as_str=True)
