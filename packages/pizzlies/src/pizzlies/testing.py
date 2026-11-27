@@ -13,6 +13,8 @@ from typing import TYPE_CHECKING, Any
 
 import pytest
 
+from pizzlies._plugin.utils import to_native_column
+
 if TYPE_CHECKING:
     from pizzlies._plugin.typing import DictFrame
 
@@ -20,7 +22,7 @@ CONSTRUCTORS_TO_SKIP = ("constructor_pandas_like",)
 
 
 def dict_constructor(obj: dict[str, Any]) -> DictFrame:
-    return {name: list(values) for name, values in obj.items()}
+    return {name: to_native_column(values) for name, values in obj.items()}
 
 
 @pytest.hookimpl(tryfirst=True)
