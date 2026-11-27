@@ -107,7 +107,7 @@ def test_concat_vertical(constructor: Constructor) -> None:
     expected = nw.from_native(
         constructor({"c": [1, 3, 2, 6, 12, -1], "d": [4, 4, 6, 0, -4, 2]})
     ).lazy()
-    assert_frame_equal(result, expected)
+    assert_frame_equal(result.lazy().collect(), expected.lazy().collect())
 
     with pytest.raises(ValueError, match="No items"):
         nw.concat([], how="vertical")
@@ -138,7 +138,7 @@ def test_concat_diagonal(constructor: Constructor) -> None:
 
     result = nw.concat([df_1, df_2], how="diagonal")
 
-    assert_frame_equal(result, expected)
+    assert_frame_equal(result.lazy().collect(), expected.lazy().collect())
 
     with pytest.raises(ValueError, match="No items"):
         nw.concat([], how="diagonal")
@@ -168,6 +168,7 @@ def test_concat_diagonal_bigger(constructor: Constructor) -> None:
     ).lazy()
     dfs = _from_natives(constructor, data_1, data_2, data_3)
     result = nw.concat(dfs, how="diagonal").sort("idx")
+    # SQLFrame infers Int32 for a column whose first value is None.
     assert_frame_equal(result, expected, check_dtypes=False)
 
 

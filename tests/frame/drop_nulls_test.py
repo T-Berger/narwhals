@@ -14,6 +14,7 @@ def test_drop_nulls(constructor: Constructor) -> None:
     expected = nw.from_native(
         constructor({"alpha": [2.0, 4.0], "beta gamma": [3.0, 5.0]})
     )
+    # SQLFrame infers Decimal for a column whose first value is None.
     assert_frame_equal(result, expected, check_dtypes=False)
 
 

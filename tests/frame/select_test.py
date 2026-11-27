@@ -38,7 +38,6 @@ def test_select_names_which_are_not_sql_identifiers(
     df = nw.from_native(constructor(data))
     expected = nw.from_native(constructor({name: [1, 3, 2]}))
     assert_frame_equal(df.select(name), expected)
-    expected = nw.from_native(constructor({name: [1, 3, 2]}))
     assert_frame_equal(df.select(ncs.numeric()), expected)
     expected = nw.from_native(constructor({"b": ["x", "y", "z"]}))
     assert_frame_equal(df.select(~ncs.numeric()), expected)

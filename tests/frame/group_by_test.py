@@ -352,20 +352,18 @@ def test_key_with_nulls_iter(constructor_eager: ConstructorEager) -> None:
     )
 
     assert len(result) == 2
-    expected = nw.from_native(constructor_eager({"b": ["4"], "a": [1], "c": ["4"]}))
-    assert_frame_equal(result[("4", "4")], expected, check_dtypes=False)
-    expected = nw.from_native(constructor_eager({"b": ["5"], "a": [2], "c": ["3"]}))
-    assert_frame_equal(result[("5", "3")], expected, check_dtypes=False)
+    expected_44 = nw.from_native(constructor_eager({"b": ["4"], "a": [1], "c": ["4"]}))
+    expected_53 = nw.from_native(constructor_eager({"b": ["5"], "a": [2], "c": ["3"]}))
+    assert_frame_equal(result[("4", "4")], expected_44, check_dtypes=False)
+    assert_frame_equal(result[("5", "3")], expected_53, check_dtypes=False)
 
     result = dict(
         nw.from_native(constructor_eager(data), eager_only=True)
         .group_by("b", "c", drop_null_keys=False)
         .__iter__()
     )
-    expected = nw.from_native(constructor_eager({"b": ["4"], "a": [1], "c": ["4"]}))
-    assert_frame_equal(result[("4", "4")], expected, check_dtypes=False)
-    expected = nw.from_native(constructor_eager({"b": ["5"], "a": [2], "c": ["3"]}))
-    assert_frame_equal(result[("5", "3")], expected, check_dtypes=False)
+    assert_frame_equal(result[("4", "4")], expected_44, check_dtypes=False)
+    assert_frame_equal(result[("5", "3")], expected_53, check_dtypes=False)
     assert len(result) == 4
 
 

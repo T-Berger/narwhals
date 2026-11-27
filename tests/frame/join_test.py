@@ -448,27 +448,35 @@ def test_left_join_overlapping_column(constructor: Constructor) -> None:
     df_right = from_native_lazy(constructor(data_right))
     result = df_left.join(df_right, left_on="bob", right_on="c", how="left").sort("idx")
     result = result.drop("idx_right")
-    expected: dict[str, list[Any]] = {
-        "antananarivo": [1, 2, 3],
-        "bob": [4, 5, 6],
-        "d": [1, 4, 2],
-        "idx": [0, 1, 2],
-        "antananarivo_right": [1, 2, 3],
-        "d_right": [1, 4, 2],
-    }
-    assert_equal_data(result, expected)
+    expected = from_native_lazy(
+        constructor(
+            {
+                "antananarivo": [1.0, 2.0, 3.0],
+                "bob": [4.0, 5.0, 6.0],
+                "d": [1.0, 4.0, 2.0],
+                "idx": [0.0, 1.0, 2.0],
+                "antananarivo_right": [1.0, 2.0, 3.0],
+                "d_right": [1.0, 4.0, 2.0],
+            }
+        )
+    )
+    assert_frame_equal(result, expected)
     result = df_left.join(df_right, left_on="antananarivo", right_on="d", how="left")
     result = result.sort("idx")
     result = result.drop("idx_right")
-    expected = {
-        "antananarivo": [1, 2, 3],
-        "bob": [4, 5, 6],
-        "d": [1, 4, 2],
-        "idx": [0, 1, 2],
-        "antananarivo_right": [1.0, 3.0, None],
-        "c": [4.0, 6.0, None],
-    }
-    assert_equal_data(result, expected)
+    expected = from_native_lazy(
+        constructor(
+            {
+                "antananarivo": [1.0, 2.0, 3.0],
+                "bob": [4.0, 5.0, 6.0],
+                "d": [1.0, 4.0, 2.0],
+                "idx": [0.0, 1.0, 2.0],
+                "antananarivo_right": [1.0, 3.0, None],
+                "c": [4.0, 6.0, None],
+            }
+        )
+    )
+    assert_frame_equal(result, expected)
 
 
 @pytest.mark.parametrize("how", ["inner", "left", "semi", "anti"])
@@ -976,6 +984,7 @@ def test_full_join_with_overlapping_non_key_columns_and_nulls(
         )
     )
 
+    # SQLFrame infers Int32 for columns whose first value is None.
     assert_frame_equal(result, expected, check_dtypes=False)
 
 

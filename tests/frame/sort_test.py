@@ -17,12 +17,12 @@ def test_sort(constructor: Constructor) -> None:
     expected = nw.from_native(
         constructor({"an tan": [1, 2, 3], "b": [4, 6, 4], "z": [7.0, 9.0, 8.0]})
     )
-    assert_frame_equal(result, expected)
+    assert_frame_equal(result.lazy().collect(), expected.lazy().collect())
     result = df.sort("an tan", "b", descending=[True, False])
     expected = nw.from_native(
         constructor({"an tan": [3, 2, 1], "b": [4, 6, 4], "z": [8.0, 9.0, 7.0]})
     )
-    assert_frame_equal(result, expected)
+    assert_frame_equal(result.lazy().collect(), expected.lazy().collect())
 
 
 @pytest.mark.parametrize(

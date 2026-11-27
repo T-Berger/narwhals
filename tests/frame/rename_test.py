@@ -1,16 +1,11 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-
 import pytest
 
 import narwhals as nw
 from narwhals.exceptions import DuplicateError
 from narwhals.testing import assert_frame_equal
-from tests.utils import assert_equal_data
-
-if TYPE_CHECKING:
-    from tests.utils import Constructor
+from tests.utils import Constructor, assert_equal_data
 
 
 def test_rename(constructor: Constructor) -> None:

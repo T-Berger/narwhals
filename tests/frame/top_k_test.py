@@ -31,9 +31,6 @@ def test_top_k(constructor: Constructor) -> None:
     assert_frame_equal(result.sort("a"), expected, check_dtypes=False)
     df = nw.from_native(constructor(data))
     result = df.top_k(4, by="b c", reverse=True)
-    expected = nw.from_native(
-        constructor({"a": ["a", "b", "c", "d"], "b c": [2, 6, 1, 3]})
-    )
     assert_frame_equal(result.sort(by="a"), expected, check_dtypes=False)
 
 
