@@ -17,10 +17,10 @@ def test_head(constructor: Constructor) -> None:
     df = nw.from_native(df_raw)
 
     result = df.head(2)
-    assert_frame_equal(result, expected)
+    assert_frame_equal(result.lazy().collect(), expected.lazy().collect())
 
     result = df.head(2)
-    assert_frame_equal(result, expected)
+    assert_frame_equal(result.lazy().collect(), expected.lazy().collect())
 
     # negative indices not allowed for lazyframes
     result = df.lazy().collect().head(-1)
