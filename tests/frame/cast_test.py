@@ -53,7 +53,7 @@ def test_cast_empty_mapping(constructor: Constructor) -> None:
     df = nw.from_native(constructor(data))
     result = df.cast({})
     assert result.collect_schema() == df.collect_schema()
-    assert_frame_equal(result, df)
+    assert_equal_data(result, data)
 
 
 def test_cast_nonexistent_column(constructor: Constructor) -> None:

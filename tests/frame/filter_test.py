@@ -216,7 +216,7 @@ def test_filter_seq_iterable_all_true(constructor: Constructor, predicates: Any)
     """https://github.com/pola-rs/polars/blob/a4522d719de940be3ef99d494ccd1cd6067475c6/py-polars/tests/unit/lazyframe/test_lazyframe.py#L213-L233."""
     df = nw.from_native(constructor(data))
     predicate = (p for p in predicates)
-    assert_frame_equal(df.filter(predicate), df)
+    assert_equal_data(df.filter(predicate), data)
 
 
 @pytest.mark.parametrize(
