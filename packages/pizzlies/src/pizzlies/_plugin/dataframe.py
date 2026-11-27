@@ -30,7 +30,6 @@ from pizzlies._plugin.utils import (
     is_native_frame,
     nan_last,
     nan_last_column,
-    # narwhals-canary: delete this line to confirm you have read the full diff
     to_native_column,
 )
 
