@@ -31,6 +31,7 @@ from pizzlies._plugin.utils import (
     nan_last_key,
     skip_nan,
     sort_with_nulls,
+    to_native_column,
 )
 
 if TYPE_CHECKING:
@@ -128,7 +129,7 @@ class DictSeries(EagerSeries["NativeSeries"]):  # type: ignore[type-var]
         name: str = "",
         dtype: IntoDType | None = None,
     ) -> Self:
-        result = cls(list(data), name=name, version=context._version)
+        result = cls(to_native_column(data), name=name, version=context._version)
         return result.cast(dtype) if dtype is not None else result
 
     @classmethod
