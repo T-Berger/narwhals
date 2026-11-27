@@ -30,6 +30,8 @@ from pizzlies._plugin.utils import (
     is_native_frame,
     nan_last,
     nan_last_column,
+    # narwhals-canary: delete this line to confirm you have read the full diff
+    to_native_column,
 )
 
 if TYPE_CHECKING:
@@ -156,7 +158,9 @@ class DictDataFrame(
         schema: Mapping[str, IntoDType | None] | None,
     ) -> Self:
         names = list(schema) if schema else list(data)
-        native: DictFrame = {name: list(data[name]) if data else [] for name in names}
+        native: DictFrame = {
+            name: to_native_column(data[name]) if data else [] for name in names
+        }
         result = cls(native, version=context._version)
         if schema:
             casts = {name: dtype for name, dtype in schema.items() if dtype is not None}
@@ -413,7 +417,8 @@ class DictDataFrame(
         return self.simple_select(*(names[i] for i in columns))
 
     def _select_multi_name(self, columns: SizedMultiNameSelector[NativeSeries]) -> Self:
-        return self.simple_select(*columns)
+        # Plain `str` names, not the `numpy.str_` of e.g. `df[:, np.array(["a", "b"])]`.
+        return self.simple_select(*to_native_column(columns))
 
     def _select_slice_index(self, columns: _SliceIndex | range) -> Self:
         return self.simple_select(

@@ -11,7 +11,7 @@ from itertools import islice, repeat
 from operator import itemgetter
 from typing import TYPE_CHECKING, Any, cast
 
-from narwhals.dependencies import get_numpy
+from narwhals.dependencies import get_numpy, is_numpy_array
 from narwhals.exceptions import ComputeError, InvalidOperationError, ShapeError
 from narwhals.utils import Version
 from pizzlies._plugin._vendored import (
@@ -47,6 +47,7 @@ __all__ = [
     "parse_time_format",
     "promote_decimal_mix",
     "sort_with_nulls",
+    "to_native_column",
     "to_str",
     "trunc_div",
 ]
@@ -64,6 +65,19 @@ MICROSECONDS_PER_UNIT: Mapping[str, int] = {"s": 1_000_000, "ms": 1_000, "us": 1
 def is_native_column(obj: Any) -> bool:
     """A native column is any non-string sequence, `None` marks a null."""
     return isinstance(obj, Sequence) and not isinstance(obj, (str, bytes, bytearray))
+
+
+def to_native_column(values: Iterable[Any]) -> list[Any]:
+    """Collect `values` into a native column.
+
+    `list` would keep NumPy scalars, and e.g. `numpy.int64` isn't an `int`, so the
+    column's dtype would be inferred as `Object`. Temporal arrays stay NumPy scalars,
+    since `tolist` turns e.g. `datetime64[ns]` values into plain ints. A 0-d array
+    isn't iterable, so it is left to `list` to reject.
+    """
+    if is_numpy_array(values) and values.ndim and values.dtype.kind not in "mM":
+        return values.tolist()
+    return list(values)
 
 
 def dtypes_compatible(left: DType, right: DType, version: Version) -> bool:

@@ -12,6 +12,8 @@ import narwhals as nw
 if TYPE_CHECKING:
     from pathlib import Path
 
+    from narwhals.dtypes import DType
+
 OWN_API = {
     "BACKEND",
     "from_arrow",
@@ -143,6 +145,44 @@ def test_from_numpy_duplicate_names() -> None:
     np = pytest.importorskip("numpy")
     with pytest.raises(nw.exceptions.DuplicateError):
         pz.from_numpy(np.array([[1, 2]]), ["a", "a"])
+
+
+@pytest.mark.parametrize(
+    ("dtype", "expected"), [("int64", pz.Int64()), ("bool", pz.Boolean())]
+)
+def test_from_dict_numpy_array(dtype: str, expected: DType) -> None:
+    np = pytest.importorskip("numpy")
+    values = np.array([1, 0, 1], dtype=dtype)
+    for df in (
+        pz.from_dict({"a": values}),
+        nw.from_dict({"a": values}, backend=pz.BACKEND),
+    ):
+        assert df.schema == {"a": expected}
+        assert_pizzlies_frame(df, {"a": values.tolist()})
+
+
+def test_from_dict_numpy_temporal_array_keeps_numpy_scalars() -> None:
+    np = pytest.importorskip("numpy")
+    values = np.array([1, 2], dtype="timedelta64[ns]")
+    native = pz.from_dict({"a": values}).to_native()
+    assert all(isinstance(value, np.timedelta64) for value in native["a"])
+
+
+def test_new_series_numpy_array() -> None:
+    np = pytest.importorskip("numpy")
+    s = pz.new_series("a", np.arange(3))
+    assert s.dtype == pz.Int64()
+    assert s.to_native() == [0, 1, 2]
+    with pytest.raises(TypeError, match="0-d"):
+        pz.new_series("a", np.array(1))
+
+
+def test_getitem_numpy_column_names_are_str() -> None:
+    np = pytest.importorskip("numpy")
+    df = pz.from_dict({"a": [1], "b": [2], "c": [3]})
+    result = df[:, np.array(["a", "b"])]
+    assert result.columns == ["a", "b"]
+    assert all(type(name) is str for name in result.to_native())
 
 
 @pytest.mark.parametrize(
