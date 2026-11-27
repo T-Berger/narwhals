@@ -7,6 +7,7 @@ import pytest
 from packaging.version import Version as PkgVersion
 
 import narwhals as nw
+from narwhals.testing import assert_frame_equal
 from tests.utils import PANDAS_VERSION, ConstructorEager, assert_equal_data
 
 if TYPE_CHECKING:
@@ -26,10 +27,14 @@ def test_slice_column(constructor_eager: ConstructorEager) -> None:
 
 def test_slice_rows(constructor_eager: ConstructorEager) -> None:
     result = nw.from_native(constructor_eager(data))[1:]
-    assert_equal_data(result, {"a": [2.0, 3.0, 4.0, 5.0, 6.0], "b": [12, 13, 14, 15, 16]})
+    expected = nw.from_native(
+        constructor_eager({"a": [2.0, 3.0, 4.0, 5.0, 6.0], "b": [12, 13, 14, 15, 16]})
+    )
+    assert_frame_equal(result, expected)
 
     result = nw.from_native(constructor_eager(data))[2:4]
-    assert_equal_data(result, {"a": [3.0, 4.0], "b": [13, 14]})
+    expected = nw.from_native(constructor_eager({"a": [3.0, 4.0], "b": [13, 14]}))
+    assert_frame_equal(result, expected)
 
 
 def test_slice_rows_with_step(
@@ -38,7 +43,10 @@ def test_slice_rows_with_step(
     if "pyarrow_table" in str(constructor_eager):
         request.applymarker(pytest.mark.xfail)
     result = nw.from_native(constructor_eager(data))[1::2]
-    assert_equal_data(result, {"a": [2.0, 4.0, 6.0], "b": [12, 14, 16]})
+    expected = nw.from_native(
+        constructor_eager({"a": [2.0, 4.0, 6.0], "b": [12, 14, 16]})
+    )
+    assert_frame_equal(result, expected)
 
 
 def test_slice_rows_with_step_pyarrow() -> None:
@@ -65,7 +73,8 @@ def test_slice_lazy_fails() -> None:
 
 def test_slice_int(constructor_eager: ConstructorEager) -> None:
     result = nw.from_native(constructor_eager(data), eager_only=True)[1]
-    assert_equal_data(result, {"a": [2], "b": [12]})
+    expected = nw.from_native(constructor_eager({"a": [2.0], "b": [12]}))
+    assert_frame_equal(result, expected)
 
 
 def test_slice_fails(constructor_eager: ConstructorEager) -> None:
@@ -81,11 +90,13 @@ def test_gather(constructor_eager: ConstructorEager) -> None:
 
     df = nw.from_native(constructor_eager(data), eager_only=True)
     result = df[[0, 3, 1]]
-    expected = {"a": [1.0, 4.0, 2.0], "b": [11, 14, 12]}
-    assert_equal_data(result, expected)
+    expected = nw.from_native(
+        constructor_eager({"a": [1.0, 4.0, 2.0], "b": [11, 14, 12]})
+    )
+    assert_frame_equal(result, expected)
     arr = cast("_1DArray", np.array([0, 3, 1]))
     result = df[arr]
-    assert_equal_data(result, expected)
+    assert_frame_equal(result, expected)
 
 
 def test_gather_pandas_index() -> None:
@@ -123,8 +134,8 @@ def test_slice_both_list_of_ints(constructor_eager: ConstructorEager) -> None:
     data = {"a": [1, 2, 3], "b": [4, 5, 6], "c": [7, 8, 9]}
     df = nw.from_native(constructor_eager(data), eager_only=True)
     result = df[[0, 1], [0, 2]]
-    expected = {"a": [1, 2], "c": [7, 8]}
-    assert_equal_data(result, expected)
+    expected = nw.from_native(constructor_eager({"a": [1, 2], "c": [7, 8]}))
+    assert_frame_equal(result, expected)
 
 
 def test_slice_both_tuple(
@@ -136,16 +147,16 @@ def test_slice_both_tuple(
     data = {"a": [1, 2, 3], "b": [4, 5, 6], "c": [7, 8, 9]}
     df = nw.from_native(constructor_eager(data), eager_only=True)
     result = df[(0, 1), ("a", "c")]
-    expected = {"a": [1, 2], "c": [7, 8]}
-    assert_equal_data(result, expected)
+    expected = nw.from_native(constructor_eager({"a": [1, 2], "c": [7, 8]}))
+    assert_frame_equal(result, expected)
 
 
 def test_slice_int_rows_str_columns(constructor_eager: ConstructorEager) -> None:
     data = {"a": [1, 2, 3], "b": [4, 5, 6], "c": [7, 8, 9]}
     df = nw.from_native(constructor_eager(data), eager_only=True)
     result = df[[0, 1], ["a", "c"]]
-    expected = {"a": [1, 2], "c": [7, 8]}
-    assert_equal_data(result, expected)
+    expected = nw.from_native(constructor_eager({"a": [1, 2], "c": [7, 8]}))
+    assert_frame_equal(result, expected)
 
 
 @pytest.mark.parametrize(
@@ -258,8 +269,10 @@ def test_getitem_ndarray_columns(constructor_eager: ConstructorEager) -> None:
     nw_df = nw.from_native(constructor_eager(data), eager_only=True)
     arr = np.arange(2)
     result = nw_df[:, arr]
-    expected = {"col1": ["a", "b", "c", "d"], "col2": [0, 1, 2, 3]}
-    assert_equal_data(result, expected)
+    expected = nw.from_native(
+        constructor_eager({"col1": ["a", "b", "c", "d"], "col2": [0, 1, 2, 3]})
+    )
+    assert_frame_equal(result, expected, check_dtypes=False)
 
 
 def test_getitem_ndarray_columns_labels(constructor_eager: ConstructorEager) -> None:
@@ -270,8 +283,10 @@ def test_getitem_ndarray_columns_labels(constructor_eager: ConstructorEager) -> 
     nw_df = nw.from_native(constructor_eager(data), eager_only=True)
     arr: np.ndarray[tuple[int], np.dtype[Any]] = np.array(["col1", "col2"])  # pyright: ignore[reportAssignmentType]
     result = nw_df[:, arr]
-    expected = {"col1": ["a", "b", "c", "d"], "col2": [0, 1, 2, 3]}
-    assert_equal_data(result, expected)
+    expected = nw.from_native(
+        constructor_eager({"col1": ["a", "b", "c", "d"], "col2": [0, 1, 2, 3]})
+    )
+    assert_frame_equal(result, expected, check_dtypes=False)
 
 
 def test_getitem_negative_slice(constructor_eager: ConstructorEager) -> None:
@@ -308,8 +323,8 @@ def test_single_tuple(constructor_eager: ConstructorEager) -> None:
     # Technically works but we should probably discourage it
     # OK if overloads don't match it.
     result = nw_df[[0, 1],]  # type: ignore[index]
-    expected = {"a": [1, 2]}
-    assert_equal_data(result, expected)
+    expected = nw.from_native(constructor_eager({"a": [1, 2]}))
+    assert_frame_equal(result, expected)
 
 
 def test_triple_tuple(constructor_eager: ConstructorEager) -> None:
@@ -331,19 +346,19 @@ def test_slice_with_series(
     data = {"a": [1, 2, 3], "c": [0, 2, 1]}
     nw_df = nw.from_native(constructor_eager(data), eager_only=True)
     result = nw_df[nw_df["c"]]
-    expected = {"a": [1, 3, 2], "c": [0, 1, 2]}
-    assert_equal_data(result, expected)
+    expected = nw.from_native(constructor_eager({"a": [1, 3, 2], "c": [0, 1, 2]}))
+    assert_frame_equal(result, expected)
     result = nw_df[nw_df["c"], ["a"]]
-    expected = {"a": [1, 3, 2]}
-    assert_equal_data(result, expected)
+    expected = nw.from_native(constructor_eager({"a": [1, 3, 2]}))
+    assert_frame_equal(result, expected)
 
 
 def test_horizontal_slice_with_series(constructor_eager: ConstructorEager) -> None:
     data = {"a": [1, 2], "c": [0, 2], "d": ["c", "a"]}
     nw_df = nw.from_native(constructor_eager(data), eager_only=True)
     result = nw_df[nw_df["d"]]
-    expected = {"c": [0, 2], "a": [1, 2]}
-    assert_equal_data(result, expected)
+    expected = nw.from_native(constructor_eager({"c": [0, 2], "a": [1, 2]}))
+    assert_frame_equal(result, expected)
 
 
 def test_horizontal_slice_with_series_2(
@@ -359,8 +374,8 @@ def test_horizontal_slice_with_series_2(
     data = {"a": [1, 2], "c": [0, 2], "d": ["c", "a"]}
     nw_df = nw.from_native(constructor_eager(data), eager_only=True)
     result = nw_df[:, nw_df["c"]]
-    expected = {"a": [1, 2], "d": ["c", "a"]}
-    assert_equal_data(result, expected)
+    expected = nw.from_native(constructor_eager({"a": [1, 2], "d": ["c", "a"]}))
+    assert_frame_equal(result, expected)
 
 
 def test_native_slice_series(constructor_eager: ConstructorEager) -> None:
@@ -401,12 +416,12 @@ def test_getitem_boolean_columns(constructor_eager: ConstructorEager) -> None:
         eager_only=True,
     )
     result = df[:, [False, True, True]]
-    expected = {"bc": [4, 5, 6], "cd": [3, 2, 1]}
-    assert_equal_data(result, expected)
+    expected = nw.from_native(constructor_eager({"bc": [4, 5, 6], "cd": [3, 2, 1]}))
+    assert_frame_equal(result, expected)
     result = df[:, np.array([False, True, True])]
-    assert_equal_data(result, expected)
+    assert_frame_equal(result, expected)
     result = df[:, df["ab"] > 1]
-    assert_equal_data(result, expected)
+    assert_frame_equal(result, expected)
 
 
 def test_getitem_single_boolean_column(constructor_eager: ConstructorEager) -> None:

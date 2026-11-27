@@ -6,6 +6,7 @@ import pytest
 
 import narwhals as nw
 from narwhals._utils import Implementation
+from narwhals.testing import assert_frame_equal
 from tests.utils import Constructor, assert_equal_data
 
 if TYPE_CHECKING:
@@ -38,7 +39,12 @@ def test_from_dict_without_backend(constructor: Constructor, backend: Polars) ->
         .collect(backend=backend)
     )
     result = nw.DataFrame.from_dict({"c": df["a"], "d": df["b"]})
-    assert_equal_data(result, {"c": [1, 2, 3], "d": [4, 5, 6]})
+    expected = (
+        nw.from_native(constructor({"c": [1, 2, 3], "d": [4, 5, 6]}))
+        .lazy()
+        .collect(backend=backend)
+    )
+    assert_frame_equal(result, expected)
 
 
 def test_from_dict_without_backend_invalid(constructor: Constructor) -> None:
@@ -66,8 +72,12 @@ def test_from_dict_one_native_one_narwhals(
         .collect(backend=backend)
     )
     result = nw.DataFrame.from_dict({"c": nw.to_native(df["a"]), "d": df["b"]})
-    expected = {"c": [1, 2, 3], "d": [4, 5, 6]}
-    assert_equal_data(result, expected)
+    expected = (
+        nw.from_native(constructor({"c": [1, 2, 3], "d": [4, 5, 6]}))
+        .lazy()
+        .collect(backend=backend)
+    )
+    assert_frame_equal(result, expected)
 
 
 def test_from_dict_empty(eager_backend: EagerAllowed) -> None:

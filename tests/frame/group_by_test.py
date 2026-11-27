@@ -10,6 +10,7 @@ from packaging.version import Version as PkgVersion
 
 import narwhals as nw
 from narwhals.exceptions import DuplicateError, InvalidOperationError
+from narwhals.testing import assert_frame_equal
 from tests.utils import (
     DUCKDB_VERSION,
     PANDAS_VERSION,
@@ -77,8 +78,10 @@ def test_group_by_iter(constructor_eager: ConstructorEager) -> None:
     keys = []
     for key, sub_df in df.group_by("a"):
         if key == (1,):
-            expected = {"a": [1, 1], "b": [4, 4], "c": [7.0, 8.0]}
-            assert_equal_data(sub_df, expected)
+            expected = nw.from_native(
+                constructor_eager({"a": [1, 1], "b": [4, 4], "c": [7.0, 8.0]})
+            )
+            assert_frame_equal(sub_df, expected)
             assert isinstance(sub_df, nw.DataFrame)
         keys.append(key)
     assert sorted(keys) == sorted(expected_keys)
@@ -109,11 +112,13 @@ def test_group_by_iter_non_str_pandas() -> None:
 def test_group_by_nw_all(constructor: Constructor) -> None:
     df = nw.from_native(constructor({"a": [1, 1, 2], "b": [4, 5, 6], "c": [7, 8, 9]}))
     result = df.group_by("a").agg(nw.all().sum()).sort("a")
-    expected = {"a": [1, 2], "b": [9, 6], "c": [15, 9]}
-    assert_equal_data(result, expected)
+    expected = nw.from_native(constructor({"a": [1, 2], "b": [9, 6], "c": [15, 9]}))
+    assert_frame_equal(result, expected, check_dtypes=False)
     result = df.group_by("a").agg(nw.all().sum().name.suffix("_sum")).sort("a")
-    expected = {"a": [1, 2], "b_sum": [9, 6], "c_sum": [15, 9]}
-    assert_equal_data(result, expected)
+    expected = nw.from_native(
+        constructor({"a": [1, 2], "b_sum": [9, 6], "c_sum": [15, 9]})
+    )
+    assert_frame_equal(result, expected, check_dtypes=False)
 
 
 @pytest.mark.parametrize(
@@ -188,16 +193,20 @@ def test_group_by_depth_1_agg_bool_ops(
 def test_group_by_depth_1_std_var(constructor: Constructor, attr: str, ddof: int) -> None:
     data = {"a": [1, 1, 1, 2, 2, 2], "b": [4, 5, 6, 0, 5, 5]}
     _pow = 0.5 if attr == "std" else 1
-    expected = {
-        "a": [1, 2],
-        "b": [
-            (sum((v - 5) ** 2 for v in [4, 5, 6]) / (3 - ddof)) ** _pow,
-            (sum((v - 10 / 3) ** 2 for v in [0, 5, 5]) / (3 - ddof)) ** _pow,
-        ],
-    }
+    expected = nw.from_native(
+        constructor(
+            {
+                "a": [1, 2],
+                "b": [
+                    (sum((v - 5) ** 2 for v in [4, 5, 6]) / (3 - ddof)) ** _pow,
+                    (sum((v - 10 / 3) ** 2 for v in [0, 5, 5]) / (3 - ddof)) ** _pow,
+                ],
+            }
+        )
+    )
     expr = getattr(nw.col("b"), attr)(ddof=ddof)
     result = nw.from_native(constructor(data)).group_by("a").agg(expr).sort("a")
-    assert_equal_data(result, expected)
+    assert_frame_equal(result, expected)
 
 
 def test_group_by_median(constructor: Constructor) -> None:
@@ -208,8 +217,8 @@ def test_group_by_median(constructor: Constructor) -> None:
         .agg(nw.col("b").median())
         .sort("a")
     )
-    expected = {"a": [1, 2], "b": [5, 3]}
-    assert_equal_data(result, expected)
+    expected = nw.from_native(constructor({"a": [1, 2], "b": [5.0, 3.0]}))
+    assert_frame_equal(result, expected)
 
 
 def test_group_by_n_unique_w_missing(constructor: Constructor) -> None:
@@ -227,14 +236,18 @@ def test_group_by_n_unique_w_missing(constructor: Constructor) -> None:
         )
         .sort("a")
     )
-    expected = {
-        "a": [1, 2],
-        "b": [2, 1],
-        "c_n_unique": [1, 1],
-        "c_n_min": [4, 5],
-        "d_n_unique": [1, 1],
-    }
-    assert_equal_data(result, expected)
+    expected = nw.from_native(
+        constructor(
+            {
+                "a": [1, 2],
+                "b": [2, 1],
+                "c_n_unique": [1, 1],
+                "c_n_min": [4, 5],
+                "d_n_unique": [1, 1],
+            }
+        )
+    )
+    assert_frame_equal(result, expected, check_dtypes=False)
 
 
 def test_group_by_same_name_twice() -> None:
@@ -267,16 +280,18 @@ def test_group_by_simple_named(constructor: Constructor) -> None:
     result = (
         df.group_by("a").agg(b_min=nw.col("b").min(), b_max=nw.col("b").max()).sort("a")
     )
-    expected = {"a": [1, 2], "b_min": [4, 6], "b_max": [5, 6]}
-    assert_equal_data(result, expected)
+    expected = nw.from_native(
+        constructor({"a": [1, 2], "b_min": [4, 6], "b_max": [5, 6]})
+    ).lazy()
+    assert_frame_equal(result, expected)
 
 
 def test_group_by_simple_unnamed(constructor: Constructor) -> None:
     data = {"a": [1, 1, 2], "b": [4, 5, 6], "c": [7, 2, 1]}
     df = nw.from_native(constructor(data)).lazy()
     result = df.group_by("a").agg(nw.col("b").min(), nw.col("c").max()).sort("a")
-    expected = {"a": [1, 2], "b": [4, 6], "c": [7, 1]}
-    assert_equal_data(result, expected)
+    expected = nw.from_native(constructor({"a": [1, 2], "b": [4, 6], "c": [7, 1]})).lazy()
+    assert_frame_equal(result, expected)
 
 
 def test_group_by_multiple_keys(constructor: Constructor) -> None:
@@ -287,8 +302,10 @@ def test_group_by_multiple_keys(constructor: Constructor) -> None:
         .agg(c_min=nw.col("c").min(), c_max=nw.col("c").max())
         .sort("a")
     )
-    expected = {"a": [1, 2], "b": [4, 6], "c_min": [2, 1], "c_max": [7, 1]}
-    assert_equal_data(result, expected)
+    expected = nw.from_native(
+        constructor({"a": [1, 2], "b": [4, 6], "c_min": [2, 1], "c_max": [7, 1]})
+    ).lazy()
+    assert_frame_equal(result, expected)
 
 
 def test_key_with_nulls(constructor: Constructor, request: pytest.FixtureRequest) -> None:
@@ -303,8 +320,10 @@ def test_key_with_nulls(constructor: Constructor, request: pytest.FixtureRequest
         .sort("a")
         .cast({"b": nw.Float64})
     )
-    expected = {"b": [4.0, 5, None], "len": [1, 1, 1], "a": [1, 2, 3]}
-    assert_equal_data(result, expected)
+    expected = nw.from_native(
+        constructor({"b": [4.0, 5, None], "len": [1, 1, 1], "a": [1, 2, 3]})
+    )
+    assert_frame_equal(result, expected, check_dtypes=False)
 
 
 def test_key_with_nulls_ignored(constructor: Constructor) -> None:
@@ -316,8 +335,8 @@ def test_key_with_nulls_ignored(constructor: Constructor) -> None:
         .sort("a")
         .cast({"b": nw.Float64})
     )
-    expected = {"b": [4.0, 5], "len": [1, 1], "a": [1, 2]}
-    assert_equal_data(result, expected)
+    expected = nw.from_native(constructor({"b": [4.0, 5], "len": [1, 1], "a": [1, 2]}))
+    assert_frame_equal(result, expected, check_dtypes=False)
 
 
 def test_key_with_nulls_iter(constructor_eager: ConstructorEager) -> None:
@@ -333,24 +352,28 @@ def test_key_with_nulls_iter(constructor_eager: ConstructorEager) -> None:
     )
 
     assert len(result) == 2
-    assert_equal_data(result[("4", "4")], {"b": ["4"], "a": [1], "c": ["4"]})
-    assert_equal_data(result[("5", "3")], {"b": ["5"], "a": [2], "c": ["3"]})
+    expected = nw.from_native(constructor_eager({"b": ["4"], "a": [1], "c": ["4"]}))
+    assert_frame_equal(result[("4", "4")], expected, check_dtypes=False)
+    expected = nw.from_native(constructor_eager({"b": ["5"], "a": [2], "c": ["3"]}))
+    assert_frame_equal(result[("5", "3")], expected, check_dtypes=False)
 
     result = dict(
         nw.from_native(constructor_eager(data), eager_only=True)
         .group_by("b", "c", drop_null_keys=False)
         .__iter__()
     )
-    assert_equal_data(result[("4", "4")], {"b": ["4"], "a": [1], "c": ["4"]})
-    assert_equal_data(result[("5", "3")], {"b": ["5"], "a": [2], "c": ["3"]})
+    expected = nw.from_native(constructor_eager({"b": ["4"], "a": [1], "c": ["4"]}))
+    assert_frame_equal(result[("4", "4")], expected, check_dtypes=False)
+    expected = nw.from_native(constructor_eager({"b": ["5"], "a": [2], "c": ["3"]}))
+    assert_frame_equal(result[("5", "3")], expected, check_dtypes=False)
     assert len(result) == 4
 
 
 def test_no_agg(constructor: Constructor) -> None:
     result = nw.from_native(constructor(data)).group_by(["a", "b"]).agg().sort("a", "b")
 
-    expected = {"a": [1, 3], "b": [4, 6]}
-    assert_equal_data(result, expected)
+    expected = nw.from_native(constructor({"a": [1, 3], "b": [4, 6]}))
+    assert_frame_equal(result, expected)
 
 
 def test_group_by_categorical(constructor: Constructor) -> None:
@@ -391,8 +414,8 @@ def test_double_same_aggregation(
         request.applymarker(pytest.mark.xfail)
     df = nw.from_native(constructor({"a": [1, 1, 2], "b": [4, 5, 6]}))
     result = df.group_by("a").agg(c=nw.col("b").mean(), d=nw.col("b").mean()).sort("a")
-    expected = {"a": [1, 2], "c": [4.5, 6], "d": [4.5, 6]}
-    assert_equal_data(result, expected)
+    expected = nw.from_native(constructor({"a": [1, 2], "c": [4.5, 6], "d": [4.5, 6]}))
+    assert_frame_equal(result, expected)
 
 
 def test_all_kind_of_aggs(
@@ -424,17 +447,21 @@ def test_all_kind_of_aggs(
     )
 
     variance_num = sum((v - 10 / 3) ** 2 for v in [0, 5, 5])
-    expected = {
-        "a": [1, 2],
-        "c": [5, 10 / 3],
-        "d": [5, 10 / 3],
-        "e": [1, (variance_num / (3 - 1)) ** 0.5],
-        "f": [2**0.5, (variance_num) ** 0.5],  # denominator is 1 (=3-2)
-        "g": [2.0, variance_num],  # denominator is 1 (=3-2)
-        "h": [2.0, variance_num],  # denominator is 1 (=3-2)
-        "i": [3, 2],
-    }
-    assert_equal_data(result, expected)
+    expected = nw.from_native(
+        constructor(
+            {
+                "a": [1, 2],
+                "c": [5.0, 10 / 3],
+                "d": [5.0, 10 / 3],
+                "e": [1.0, (variance_num / (3 - 1)) ** 0.5],
+                "f": [2**0.5, (variance_num) ** 0.5],  # denominator is 1 (=3-2)
+                "g": [2.0, variance_num],  # denominator is 1 (=3-2)
+                "h": [2.0, variance_num],  # denominator is 1 (=3-2)
+                "i": [3, 2],
+            }
+        )
+    )
+    assert_frame_equal(result, expected, check_dtypes=False)
 
 
 def test_pandas_group_by_index_and_column_overlap() -> None:
@@ -457,23 +484,23 @@ def test_pandas_group_by_index_and_column_overlap() -> None:
 def test_fancy_functions(constructor: Constructor) -> None:
     df = nw.from_native(constructor({"a": [1, 1, 2], "b": [4, 5, 6]}))
     result = df.group_by("a").agg(nw.all().std(ddof=0)).sort("a")
-    expected = {"a": [1, 2], "b": [0.5, 0.0]}
-    assert_equal_data(result, expected)
+    expected = nw.from_native(constructor({"a": [1, 2], "b": [0.5, 0.0]}))
+    assert_frame_equal(result, expected)
     result = df.group_by("a").agg(nw.selectors.numeric().std(ddof=0)).sort("a")
-    assert_equal_data(result, expected)
+    assert_frame_equal(result, expected)
     result = df.group_by("a").agg(nw.selectors.matches("b").std(ddof=0)).sort("a")
-    assert_equal_data(result, expected)
+    assert_frame_equal(result, expected)
     result = (
         df.group_by("a").agg(nw.selectors.matches("b").std(ddof=0).alias("c")).sort("a")
     )
-    expected = {"a": [1, 2], "c": [0.5, 0.0]}
-    assert_equal_data(result, expected)
+    expected = nw.from_native(constructor({"a": [1, 2], "c": [0.5, 0.0]}))
+    assert_frame_equal(result, expected)
     result = (
         df.group_by("a")
         .agg(nw.selectors.matches("b").std(ddof=0).name.map(lambda _x: "c"))
         .sort("a")
     )
-    assert_equal_data(result, expected)
+    assert_frame_equal(result, expected)
 
 
 @pytest.mark.parametrize(
@@ -559,8 +586,8 @@ def test_group_by_window(constructor: Constructor) -> None:
         .agg(nw.col("x").max())
         .sort("a", nulls_last=True)
     )
-    expected = {"a": [1.5, 2.0], "x": [2, 4]}
-    assert_equal_data(result, expected)
+    expected = nw.from_native(constructor({"a": [1.5, 2.0], "x": [2, 4]}))
+    assert_frame_equal(result, expected)
 
 
 @pytest.mark.parametrize(
@@ -590,8 +617,10 @@ def test_group_by_selector(constructor: Constructor) -> None:
         .agg(nw.col("x").mean())
         .sort("a", "b")
     )
-    expected = {"a": [1, 1], "b": [4, 6], "c": ["foo", "bar"], "x": [8.0, 9.0]}
-    assert_equal_data(result, expected)
+    expected = nw.from_native(
+        constructor({"a": [1, 1], "b": [4, 6], "c": ["foo", "bar"], "x": [8.0, 9.0]})
+    )
+    assert_frame_equal(result, expected)
 
 
 @pytest.mark.parametrize("drop_null_keys", [True, False])
@@ -607,18 +636,20 @@ def test_agg_selector_matching_only_keys(
         df.group_by("a", drop_null_keys=True) if drop_null_keys else df.group_by("a")
     )
     result = group_by.agg(nw.selectors.numeric().max()).sort("a", nulls_last=True)
-    assert_equal_data(result, {"a": keys})
+    expected = nw.from_native(constructor({"a": keys}))
+    assert_frame_equal(result, expected, check_dtypes=False)
     result = group_by.agg(nw.selectors.numeric().max(), nw.len()).sort(
         "a", nulls_last=True
     )
-    assert_equal_data(result, {"a": keys, "len": [2, 1][: len(keys)]})
+    expected = nw.from_native(constructor({"a": keys, "len": [2, 1][: len(keys)]}))
+    assert_frame_equal(result, expected, check_dtypes=False)
 
 
 def test_renaming_edge_case(constructor: Constructor) -> None:
     data = {"a": [0, 0, 0], "_a_tmp": [1, 2, 3], "b": [4, 5, 6]}
     result = nw.from_native(constructor(data)).group_by(nw.col("a")).agg(nw.all().min())
-    expected = {"a": [0], "_a_tmp": [1], "b": [4]}
-    assert_equal_data(result, expected)
+    expected = nw.from_native(constructor({"a": [0], "_a_tmp": [1], "b": [4]}))
+    assert_frame_equal(result, expected)
 
 
 def test_group_by_len_1_column(
@@ -634,14 +665,16 @@ def test_group_by_len_1_column(
         #     ValueError: conflicting aggregation functions: [('size', 'a'), ('size', 'a')]
         request.applymarker(pytest.mark.xfail)
     data = {"a": [1, 2, 1, 2, 3, 4]}
-    expected = {"a": [1, 2, 3, 4], "len": [2, 2, 1, 1], "len_a": [2, 2, 1, 1]}
+    expected = nw.from_native(
+        constructor({"a": [1, 2, 3, 4], "len": [2, 2, 1, 1], "len_a": [2, 2, 1, 1]})
+    )
     result = (
         nw.from_native(constructor(data))
         .group_by("a")
         .agg(nw.len(), nw.len().alias("len_a"))
         .sort("a")
     )
-    assert_equal_data(result, expected)
+    assert_frame_equal(result, expected, check_dtypes=False)
 
 
 @pytest.mark.parametrize(
@@ -695,14 +728,16 @@ def test_group_by_no_preserve_dtype(
         "col_a": ["A", "B", None, "A", "A", "B", None],
         "col_b": [low, low, high, high, None, None, None],
     }
-    expected = {"col_a": [None, "A", "B"], "n_unique": [2, 3, 2]}
+    expected = nw.from_native(
+        constructor_eager({"col_a": [None, "A", "B"], "n_unique": [2, 3, 2]})
+    )
     frame = nw.from_native(constructor_eager(data))
     result = (
         frame.group_by("col_a").agg(n_unique=nw.col("col_b").n_unique()).sort("col_a")
     )
     actual_dtype = result.schema["n_unique"]
     assert actual_dtype.is_integer()
-    assert_equal_data(result, expected)
+    assert_frame_equal(result, expected, check_dtypes=False)
 
 
 def test_top_level_len(constructor: Constructor) -> None:
@@ -711,14 +746,16 @@ def test_top_level_len(constructor: Constructor) -> None:
         constructor({"gender": ["m", "f", "f"], "weight": [4, 5, 6], "age": [None, 8, 9]})
     )
     result = df.group_by(["gender"]).agg(nw.all().len()).sort("gender")
-    expected = {"gender": ["f", "m"], "weight": [2, 1], "age": [2, 1]}
-    assert_equal_data(result, expected)
+    expected = nw.from_native(
+        constructor({"gender": ["f", "m"], "weight": [2, 1], "age": [2, 1]})
+    )
+    assert_frame_equal(result, expected, check_dtypes=False)
     result = (
         df.group_by("gender")
         .agg(nw.col("weight").len(), nw.col("age").len())
         .sort("gender")
     )
-    assert_equal_data(result, expected)
+    assert_frame_equal(result, expected, check_dtypes=False)
 
 
 @pytest.mark.parametrize(
@@ -818,18 +855,20 @@ def test_multi_column_expansion(constructor: Constructor) -> None:
         .agg(nw.all().sum().name.suffix("_aggregated"))
         .sort("a", descending=True)
     )
-    expected = {"a": [2, 1], "b_aggregated": [6, 9]}
-    assert_equal_data(result, expected)
+    expected = nw.from_native(constructor({"a": [2, 1], "b_aggregated": [6, 9]}))
+    assert_frame_equal(result, expected, check_dtypes=False)
     result = (
         df.group_by("a")
         .agg(nw.col("a", "b").sum().name.suffix("_aggregated"))
         .sort("a", descending=True)
     )
-    expected = {"a": [2, 1], "a_aggregated": [2, 2], "b_aggregated": [6, 9]}
-    assert_equal_data(result, expected)
+    expected = nw.from_native(
+        constructor({"a": [2, 1], "a_aggregated": [2, 2], "b_aggregated": [6, 9]})
+    )
+    assert_frame_equal(result, expected, check_dtypes=False)
     result = (
         df.group_by("a")
         .agg(nw.nth(0, 1).sum().name.suffix("_aggregated"))
         .sort("a", descending=True)
     )
-    assert_equal_data(result, expected)
+    assert_frame_equal(result, expected, check_dtypes=False)

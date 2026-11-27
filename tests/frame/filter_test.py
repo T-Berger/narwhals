@@ -6,6 +6,7 @@ import pytest
 
 import narwhals as nw
 from narwhals.exceptions import ColumnNotFoundError, InvalidOperationError
+from narwhals.testing import assert_frame_equal
 from tests.utils import Constructor, ConstructorEager, assert_equal_data
 
 data = {"a": [1, 3, 2], "b": [4, 4, 6], "z": [7.0, 8.0, 9.0]}
@@ -31,12 +32,14 @@ def test_filter_with_expr_predicates(
 def test_filter_with_series_predicates(constructor_eager: ConstructorEager) -> None:
     df = nw.from_native(constructor_eager(data), eager_only=True)
     result = df.filter(df["a"] > 1)
-    expected = {"a": [3, 2], "b": [4, 6], "z": [8.0, 9.0]}
-    assert_equal_data(result, expected)
+    expected = nw.from_native(
+        constructor_eager({"a": [3, 2], "b": [4, 6], "z": [8.0, 9.0]})
+    )
+    assert_frame_equal(result, expected)
 
     result = df.filter(df["a"] > 1, df["b"] < 6)
-    expected = {"a": [3], "b": [4], "z": [8.0]}
-    assert_equal_data(result, expected)
+    expected = nw.from_native(constructor_eager({"a": [3], "b": [4], "z": [8.0]}))
+    assert_frame_equal(result, expected)
 
 
 @pytest.mark.parametrize(
@@ -88,14 +91,16 @@ def test_filter_raise_on_shape_mismatch(constructor: Constructor) -> None:
 def test_filter_with_constrains_only(constructor: Constructor) -> None:
     df = nw.from_native(constructor(data))
     result_scalar = df.filter(a=3)
-    expected_scalar = {"a": [3], "b": [4], "z": [8.0]}
+    expected_scalar = nw.from_native(constructor({"a": [3], "b": [4], "z": [8.0]}))
 
-    assert_equal_data(result_scalar, expected_scalar)
+    assert_frame_equal(result_scalar, expected_scalar)
 
     result_expr = df.filter(a=nw.col("b") // 3)
-    expected_expr = {"a": [1, 2], "b": [4, 6], "z": [7.0, 9.0]}
+    expected_expr = nw.from_native(
+        constructor({"a": [1, 2], "b": [4, 6], "z": [7.0, 9.0]})
+    )
 
-    assert_equal_data(result_expr, expected_expr)
+    assert_frame_equal(result_expr, expected_expr)
 
 
 def test_filter_missing_column(
@@ -131,11 +136,13 @@ def test_filter_with_predicates_and_constraints(
     df = nw.from_native(constructor_eager({"a": range(5), "b": [2, 2, 4, 2, 4]}))
     mask = [True, False, True, True, False]
     mask_2 = [True, True, False, True, False]
-    expected_mask_only = {"a": [0, 2, 3], "b": [2, 4, 2]}
-    expected_mixed = {"a": [0, 3], "b": [2, 2]}
+    expected_mask_only = nw.from_native(
+        constructor_eager({"a": [0, 2, 3], "b": [2, 4, 2]})
+    )
+    expected_mixed = nw.from_native(constructor_eager({"a": [0, 3], "b": [2, 2]}))
 
     result = df.filter(mask)
-    assert_equal_data(result, expected_mask_only)
+    assert_frame_equal(result, expected_mask_only)
 
     msg = (
         r"unable to find column \"c\"; valid columns: \[\"a\", \"b\"\]"
@@ -150,21 +157,21 @@ def test_filter_with_predicates_and_constraints(
 
     # NOTE: Everything from here is currently undefined
     result = df.filter(mask, b=2)
-    assert_equal_data(result, expected_mixed)
+    assert_frame_equal(result, expected_mixed)
 
     result = df.filter(mask, nw.col("b") == 2)
-    assert_equal_data(result, expected_mixed)
+    assert_frame_equal(result, expected_mixed)
 
     result = df.filter(mask, mask_2)
-    assert_equal_data(result, expected_mixed)
+    assert_frame_equal(result, expected_mixed)
 
     result = df.filter(
         mask, nw.Series.from_iterable("mask", mask_2, backend=nw.get_native_namespace(df))
     )
-    assert_equal_data(result, expected_mixed)
+    assert_frame_equal(result, expected_mixed)
 
     result = df.filter(mask, nw.col("b") != 4, b=2)
-    assert_equal_data(result, expected_mixed)
+    assert_frame_equal(result, expected_mixed)
 
 
 def test_filter_multiple_predicates(constructor: Constructor) -> None:
@@ -174,20 +181,22 @@ def test_filter_multiple_predicates(constructor: Constructor) -> None:
     )
 
     # multiple predicates
-    expected = {"a": [1, 1, 1], "b": [1, 1, 2], "c": [1, 1, 2]}
+    expected = nw.from_native(
+        constructor({"a": [1, 1, 1], "b": [1, 1, 2], "c": [1, 1, 2]})
+    )
     for out in (
         df.filter(nw.col("a") == 1, nw.col("b") <= 2),  # positional/splat
         df.filter([nw.col("a") == 1, nw.col("b") <= 2]),  # as list
     ):
-        assert_equal_data(out, expected)
+        assert_frame_equal(out, expected)
 
     # multiple kwargs
-    assert_equal_data(df.filter(a=1, b=2), {"a": [1], "b": [2], "c": [2]})
+    expected = nw.from_native(constructor({"a": [1], "b": [2], "c": [2]}))
+    assert_frame_equal(df.filter(a=1, b=2), expected)
 
     # both positional and keyword args
-    assert_equal_data(
-        df.filter(nw.col("c") < 4, a=2, b=2), {"a": [2], "b": [2], "c": [3]}
-    )
+    expected = nw.from_native(constructor({"a": [2], "b": [2], "c": [3]}))
+    assert_frame_equal(df.filter(nw.col("c") < 4, a=2, b=2), expected)
 
 
 def test_filter_string_predicate(constructor: Constructor) -> None:
@@ -195,9 +204,9 @@ def test_filter_string_predicate(constructor: Constructor) -> None:
     df = nw.from_native(
         constructor({"description": ["eq", "gt", "ge"], "predicate": ["==", ">", ">="]})
     )
-    expected = {"description": ["eq"], "predicate": ["=="]}
+    expected = nw.from_native(constructor({"description": ["eq"], "predicate": ["=="]}))
     result = df.filter(predicate="==")
-    assert_equal_data(result, expected)
+    assert_frame_equal(result, expected)
 
 
 @pytest.mark.parametrize(

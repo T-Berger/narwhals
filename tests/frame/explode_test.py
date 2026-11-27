@@ -5,6 +5,7 @@ from packaging.version import Version as PkgVersion
 
 import narwhals as nw
 from narwhals.exceptions import InvalidOperationError, ShapeError
+from narwhals.testing import assert_frame_equal
 from tests.utils import (
     PANDAS_VERSION,
     POLARS_VERSION,
@@ -50,8 +51,10 @@ def test_explode_single_col(
         .select("a", "l3")
         .sort("a", "l3", nulls_last=True)
     )
-    expected = {"a": ["w", "x", "x", "y", "z"], "l3": [1, 1, 2, 3, None]}
-    assert_equal_data(result, expected)
+    expected = nw.from_native(
+        constructor({"a": ["w", "x", "x", "y", "z"], "l3": [1, 1, 2, 3, None]})
+    )
+    assert_frame_equal(result, expected, check_dtypes=False)
 
 
 def test_explode_multiple_cols(
@@ -66,12 +69,16 @@ def test_explode_multiple_cols(
         .select("a", "l3", "l4")
         .sort("a", "l3", nulls_last=True)
     )
-    expected = {
-        "a": ["w", "x", "x", "y", "z"],
-        "l3": [1, 1, 2, 3, None],
-        "l4": [456, 1, 2, 3, 123],
-    }
-    assert_equal_data(result, expected)
+    expected = nw.from_native(
+        constructor(
+            {
+                "a": ["w", "x", "x", "y", "z"],
+                "l3": [1, 1, 2, 3, None],
+                "l4": [456, 1, 2, 3, 123],
+            }
+        )
+    )
+    assert_frame_equal(result, expected, check_dtypes=False)
 
 
 @pytest.mark.parametrize(
@@ -397,7 +404,8 @@ def test_explode_plugin_without_flags(
         lambda self, columns: self.simple_select(*columns),
     )
 
-    assert_equal_data(df.explode("a"), {"a": [1]})
+    expected = nw.from_native(constructor_eager({"a": [1]}))
+    assert_frame_equal(df.explode("a"), expected)
     with pytest.raises(TypeError, match="empty_as_null"):
         df.explode("a", empty_as_null=False)
 
@@ -417,4 +425,5 @@ def test_explode_non_default_index(
         .select("a", "i")
         .sort("i", "a", nulls_last=True)
     )
-    assert_equal_data(result, {"a": [1, 2, None], "i": [1, 1, 3]})
+    expected = nw.from_native(constructor({"a": [1, 2, None], "i": [1, 1, 3]}))
+    assert_frame_equal(result, expected, check_dtypes=False)

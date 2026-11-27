@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING, Any
 import pytest
 
 import narwhals as nw
+from narwhals.testing import assert_frame_equal
 from tests.utils import Constructor, assert_equal_data
 
 if TYPE_CHECKING:
@@ -23,9 +24,10 @@ def test_cast(constructor: Constructor) -> None:
 
     result = df.cast(dtypes)
     assert result.collect_schema() == {**dtypes, "c": schema["c"]}
-    assert_equal_data(
-        result, {"a": [1.0, 2.0, 3.0], "b": [4, 5, 6], "c": ["x", "y", "z"]}
+    expected = nw.from_native(
+        constructor({"a": [1.0, 2.0, 3.0], "b": [4, 5, 6], "c": ["x", "y", "z"]})
     )
+    assert_frame_equal(result, expected, check_dtypes=False)
 
 
 def test_cast_matches_expr_cast(constructor: Constructor) -> None:
