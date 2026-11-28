@@ -38,7 +38,10 @@ requires_polars_0208 = pytest.mark.xfail(
 )
 polars_precision = pytest.mark.xfail(
     POLARS_VERSION >= PkgVersion("0.20.8"),
-    reason="Polars compares breakpoints as Float64",
+    reason=(
+        "Polars compares breakpoints as Float64.\n"
+        "https://github.com/pola-rs/polars/issues/31193"
+    ),
     raises=(AssertionError, DuplicateError, OverflowError),
 )
 
@@ -363,17 +366,28 @@ def test_bin_intervals_polars_native_expr() -> None:
     )
 
 
+def test_bin_intervals_scalar(
+    constructor: Constructor, request: pytest.FixtureRequest
+) -> None:
+    xfail_polars(constructor, request)
+    if any(
+        x in str(constructor) for x in ("dask", "duckdb", "ibis", "pyspark", "sqlframe")
+    ):
+        reason = "`bin_intervals` is not implemented for Dask and the SQL backends"
+        request.applymarker(pytest.mark.xfail(reason=reason, raises=NotImplementedError))
+    df = nw.from_native(constructor({"g": [0, 1, 0], "a": [2, 0, 3]}))
+    result = df.select("g", nw.col("a").min().bin_intervals([1], labels=False))
+    assert_equal_data(result, {"g": [0, 1, 0], "a": [0, 0, 0]})
+
+
 @requires_polars_0208
-def test_bin_intervals_polars_scalar_expr(request: pytest.FixtureRequest) -> None:
+@pytest.mark.xfail(
+    PkgVersion("0.20.8") <= POLARS_VERSION < PkgVersion("1.35"),
+    reason="Polars cut rejects an already aggregated column",
+    raises=ComputeError,
+)
+def test_bin_intervals_polars_scalar_group_by() -> None:
     pl = pytest.importorskip("polars")
     df = nw.from_native(pl.LazyFrame({"g": [0, 1, 0], "a": [2, 0, 3]}))
     bins = nw.col("a").min().bin_intervals([1], labels=False)
-    assert_equal_data(df.select("g", bins), {"g": [0, 1, 0], "a": [0, 0, 0]})
-    request.applymarker(
-        pytest.mark.xfail(
-            POLARS_VERSION < PkgVersion("1.35"),
-            reason="Polars cut rejects an already aggregated column",
-            raises=ComputeError,
-        )
-    )
     assert_equal_data(df.group_by("g").agg(bins).sort("g"), {"g": [0, 1], "a": [1, 0]})
